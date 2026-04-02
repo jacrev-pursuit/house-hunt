@@ -135,7 +135,7 @@ export default function EvaluatePage() {
           </svg>
           Back
         </button>
-        <h1 className="text-2xl font-bold text-foreground">Evaluate Together</h1>
+        <h1 className="text-2xl font-bold text-foreground">Evaluate</h1>
         <p className="text-sm text-sand-400 mt-1 truncate">{houseName}</p>
         <p className="text-xs text-sand-300 mt-0.5">
           Combined priorities from {parentNames.join(" & ")}

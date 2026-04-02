@@ -387,7 +387,7 @@ export default function HouseDetailPage() {
               href={`/houses/${house.id}/evaluate`}
               className="flex-1 py-3 rounded-xl bg-sea-green text-white text-center font-semibold text-sm hover:bg-sea-green-light transition-colors"
             >
-              Evaluate Together
+              Evaluate
             </Link>
             <Link
               href={`/houses/${house.id}/edit`}
