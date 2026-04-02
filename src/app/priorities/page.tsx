@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/components/AuthProvider";
+import PrioritySetup from "@/components/PrioritySetup";
 
 interface Priority {
   id: string;
@@ -30,8 +31,9 @@ export default function PrioritiesPage() {
 
   const fetchPriorities = useCallback(async () => {
     const res = await fetch("/api/priorities");
+    if (!res.ok) { setLoading(false); return; }
     const data = await res.json();
-    setParents(data.parents);
+    setParents(data.parents || []);
     setLoading(false);
   }, []);
 
@@ -40,6 +42,16 @@ export default function PrioritiesPage() {
   }, [fetchPriorities]);
 
   const myPriorities = parents.find((p) => p.id === user?.id)?.priorities || [];
+
+  if (!loading && isParent && myPriorities.length === 0) {
+    return (
+      <PrioritySetup
+        userName={user?.name || ""}
+        onComplete={fetchPriorities}
+      />
+    );
+  }
+
   const otherParent = parents.find((p) => p.id !== user?.id && p.priorities);
 
   const mustHaves = myPriorities.filter((p) => p.category === "must_have");

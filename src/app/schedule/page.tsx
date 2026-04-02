@@ -21,8 +21,11 @@ export default function SchedulePage() {
   const [houses, setHouses] = useState<HouseSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [mode, setMode] = useState<"select" | "new">("select");
   const [selectedHouseId, setSelectedHouseId] = useState("");
   const [tourDate, setTourDate] = useState("");
+  const [newAddress, setNewAddress] = useState("");
+  const [newListingUrl, setNewListingUrl] = useState("");
   const [saving, setSaving] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -35,23 +38,47 @@ export default function SchedulePage() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   async function scheduleTour() {
-    if (!selectedHouseId || !tourDate) return;
+    if (!tourDate) return;
     setSaving(true);
-    await fetch(`/api/houses/${selectedHouseId}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tourStatus: "upcoming", tourDate }),
-    });
-    setSelectedHouseId("");
-    setTourDate("");
-    setShowScheduleForm(false);
-    setSaving(false);
-    fetchData();
+
+    try {
+      if (mode === "new") {
+        if (!newAddress.trim()) { setSaving(false); return; }
+        const res = await fetch("/api/houses", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            address: newAddress,
+            listingUrl: newListingUrl,
+            tourDate,
+            tourStatus: "upcoming",
+          }),
+        });
+        if (!res.ok) { setSaving(false); return; }
+      } else {
+        if (!selectedHouseId) { setSaving(false); return; }
+        const res = await fetch(`/api/houses/${selectedHouseId}/status`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tourStatus: "upcoming", tourDate }),
+        });
+        if (!res.ok) { setSaving(false); return; }
+      }
+
+      resetForm();
+      fetchData();
+    } finally {
+      setSaving(false);
+    }
   }
 
-  async function quickScheduleNew() {
-    setShowScheduleForm(true);
+  function resetForm() {
     setSelectedHouseId("");
+    setTourDate("");
+    setNewAddress("");
+    setNewListingUrl("");
+    setShowScheduleForm(false);
+    setMode("select");
   }
 
   if (loading) {
@@ -96,7 +123,7 @@ export default function SchedulePage() {
         </div>
         {isParent && (
           <button
-            onClick={quickScheduleNew}
+            onClick={() => setShowScheduleForm(true)}
             className="px-3 py-1.5 rounded-lg bg-sea-green text-white text-sm font-medium hover:bg-sea-green-light active:scale-95 transition-all"
           >
             + Schedule Tour
@@ -108,26 +135,69 @@ export default function SchedulePage() {
       {showScheduleForm && (
         <div className="bg-white rounded-2xl border border-sand-200 p-4 space-y-3">
           <h3 className="font-semibold text-sm text-foreground">Schedule a Tour</h3>
-          
-          {schedulable.length > 0 ? (
-            <div>
-              <label className="text-xs text-sand-400 mb-1 block">Pick a house</label>
-              <select
-                value={selectedHouseId}
-                onChange={(e) => setSelectedHouseId(e.target.value)}
-                className="w-full px-3 py-2.5 rounded-xl border border-sand-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-blue/20"
-              >
-                <option value="">Select a property...</option>
-                {schedulable.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.address} {h.price > 0 && `(${formatPrice(h.price)})`}
-                  </option>
-                ))}
-              </select>
-            </div>
+
+          {/* Toggle: existing vs new */}
+          <div className="flex gap-1 bg-sand-100 rounded-xl p-1">
+            <button
+              onClick={() => setMode("select")}
+              className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
+                mode === "select" ? "bg-white text-foreground shadow-sm" : "text-sand-400"
+              }`}
+            >
+              Existing House
+            </button>
+            <button
+              onClick={() => setMode("new")}
+              className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
+                mode === "new" ? "bg-white text-foreground shadow-sm" : "text-sand-400"
+              }`}
+            >
+              New Property
+            </button>
+          </div>
+
+          {mode === "select" ? (
+            schedulable.length > 0 ? (
+              <div>
+                <label className="text-xs text-sand-400 mb-1 block">Pick a house</label>
+                <select
+                  value={selectedHouseId}
+                  onChange={(e) => setSelectedHouseId(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-xl border border-sand-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-blue/20"
+                >
+                  <option value="">Select a property...</option>
+                  {schedulable.map((h) => (
+                    <option key={h.id} value={h.id}>
+                      {h.address} {h.price > 0 && `(${formatPrice(h.price)})`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="text-sm text-sand-400 bg-sand-50 rounded-xl p-3">
+                No unscheduled houses. Switch to &quot;New Property&quot; to add one.
+              </div>
+            )
           ) : (
-            <div className="text-sm text-sand-400 bg-sand-50 rounded-xl p-3">
-              No houses to schedule. <Link href="/houses/new" className="text-slate-blue font-medium">Add one first</Link>.
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-sand-400 mb-1 block">Address *</label>
+                <input
+                  value={newAddress}
+                  onChange={(e) => setNewAddress(e.target.value)}
+                  placeholder="123 Main St, Greenport, NY"
+                  className="w-full px-3 py-2.5 rounded-xl border border-sand-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-blue/20"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-sand-400 mb-1 block">Listing URL (optional)</label>
+                <input
+                  value={newListingUrl}
+                  onChange={(e) => setNewListingUrl(e.target.value)}
+                  placeholder="https://zillow.com/..."
+                  className="w-full px-3 py-2.5 rounded-xl border border-sand-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-blue/20"
+                />
+              </div>
             </div>
           )}
 
@@ -144,13 +214,13 @@ export default function SchedulePage() {
           <div className="flex gap-2">
             <button
               onClick={scheduleTour}
-              disabled={!selectedHouseId || !tourDate || saving}
+              disabled={saving || !tourDate || (mode === "select" ? !selectedHouseId : !newAddress.trim())}
               className="flex-1 py-2.5 rounded-xl bg-sea-green text-white text-sm font-semibold disabled:opacity-40 active:scale-[0.98] transition-all"
             >
-              {saving ? "Scheduling..." : "Schedule"}
+              {saving ? "Scheduling..." : "Schedule Tour"}
             </button>
             <button
-              onClick={() => setShowScheduleForm(false)}
+              onClick={resetForm}
               className="px-4 py-2.5 rounded-xl bg-sand-100 text-sand-500 text-sm font-medium"
             >
               Cancel

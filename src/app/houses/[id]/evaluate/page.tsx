@@ -87,17 +87,23 @@ export default function EvaluatePage() {
 
   async function handleSave() {
     setSaving(true);
-    const evList = Array.from(evaluations.values()).filter(
-      (ev) => ev.met !== "not_evaluated"
-    );
+    try {
+      const evList = Array.from(evaluations.values()).filter(
+        (ev) => ev.met !== "not_evaluated"
+      );
 
-    await fetch(`/api/houses/${params.id}/evaluate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ evaluations: evList }),
-    });
+      const res = await fetch(`/api/houses/${params.id}/evaluate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ evaluations: evList }),
+      });
 
-    router.push(`/houses/${params.id}`);
+      if (res.ok) {
+        router.push(`/houses/${params.id}`);
+      }
+    } finally {
+      setSaving(false);
+    }
   }
 
   if (loading) {

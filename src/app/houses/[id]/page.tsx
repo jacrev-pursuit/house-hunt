@@ -123,12 +123,12 @@ export default function HouseDetailPage() {
   const combinedScore = getCombinedScore(parentScores.map((ps) => ps.score));
 
   async function handleStatusChange(newStatus: string) {
-    await fetch(`/api/houses/${house.id}/status`, {
+    const res = await fetch(`/api/houses/${house.id}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tourStatus: newStatus }),
     });
-    fetchHouse();
+    if (res.ok) fetchHouse();
   }
 
   async function handleDeleteHouse() {

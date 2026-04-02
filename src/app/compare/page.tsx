@@ -64,7 +64,8 @@ export default function ComparePage() {
 
   const scoredSelected = selectedHouses.map((house) => {
     const scores = parents.map((parent) => {
-      const evals = house.evaluations.filter((e) => e.userId === parent.id);
+      const parentPriorityIds = new Set(parent.priorities.map((p) => p.id));
+      const evals = house.evaluations.filter((e) => parentPriorityIds.has(e.priorityId));
       return { parent, score: calculateScore(parent.priorities, evals as never[]) };
     });
     return { house, scores, combined: getCombinedScore(scores.map((s) => s.score)) };

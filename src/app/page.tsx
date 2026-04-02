@@ -58,7 +58,8 @@ export default function DashboardPage() {
   // Top scored houses
   const scoredHouses = houses.map((house) => {
     const scores = parents.map((parent) => {
-      const evals = house.evaluations.filter((e) => e.userId === parent.id);
+      const parentPriorityIds = new Set(parent.priorities.map((p) => p.id));
+      const evals = house.evaluations.filter((e) => parentPriorityIds.has(e.priorityId));
       return calculateScore(parent.priorities, evals as never[]);
     });
     return { house, combined: getCombinedScore(scores), scores };

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { ALL_STATUSES, tourStatusLabel, tourStatusColor, tourStatusIcon } from "@/lib/utils";
 
 interface StatusPickerProps {
@@ -11,6 +12,15 @@ interface StatusPickerProps {
 
 export default function StatusPicker({ currentStatus, onStatusChange, disabled }: StatusPickerProps) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  function handleOpen(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!disabled) setOpen(true);
+  }
 
   function handleSelect(status: string) {
     if (status !== currentStatus) {
@@ -19,10 +29,42 @@ export default function StatusPicker({ currentStatus, onStatusChange, disabled }
     setOpen(false);
   }
 
+  function handleBackdropClick(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setOpen(false);
+  }
+
+  const sheet = open && mounted ? createPortal(
+    <div className="status-picker-overlay" onClick={handleBackdropClick}>
+      <div className="status-picker-sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="w-10 h-1 bg-sand-200 rounded-full mx-auto mb-4" />
+        <h3 className="font-semibold text-foreground text-center mb-4">Update Status</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {ALL_STATUSES.map((status) => (
+            <button
+              key={status}
+              onClick={() => handleSelect(status)}
+              className={`flex items-center gap-2 px-3 py-3 rounded-xl text-sm font-medium transition-all active:scale-95 ${
+                status === currentStatus
+                  ? tourStatusColor(status) + " ring-2 ring-offset-1 ring-current"
+                  : "bg-sand-50 text-sand-500 hover:bg-sand-100"
+              }`}
+            >
+              <span>{tourStatusIcon(status)}</span>
+              <span>{tourStatusLabel(status)}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body
+  ) : null;
+
   return (
-    <div className="relative">
+    <>
       <button
-        onClick={() => !disabled && setOpen(!open)}
+        onClick={handleOpen}
         className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full transition-all active:scale-95 ${tourStatusColor(currentStatus)} ${disabled ? "opacity-50" : ""}`}
       >
         {tourStatusLabel(currentStatus)}
@@ -32,32 +74,7 @@ export default function StatusPicker({ currentStatus, onStatusChange, disabled }
           </svg>
         )}
       </button>
-
-      {open && (
-        <>
-          <div className="fixed inset-0 z-50" onClick={() => setOpen(false)} />
-          <div className="fixed inset-x-0 bottom-0 z-50 bg-white rounded-t-2xl shadow-2xl border-t border-sand-200 p-4 pb-8 animate-in slide-in-from-bottom">
-            <div className="w-10 h-1 bg-sand-200 rounded-full mx-auto mb-4" />
-            <h3 className="font-semibold text-foreground text-center mb-4">Update Status</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {ALL_STATUSES.map((status) => (
-                <button
-                  key={status}
-                  onClick={() => handleSelect(status)}
-                  className={`flex items-center gap-2 px-3 py-3 rounded-xl text-sm font-medium transition-all active:scale-95 ${
-                    status === currentStatus
-                      ? tourStatusColor(status) + " ring-2 ring-offset-1 ring-current"
-                      : "bg-sand-50 text-sand-500 hover:bg-sand-100"
-                  }`}
-                >
-                  <span>{tourStatusIcon(status)}</span>
-                  <span>{tourStatusLabel(status)}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </>
-      )}
-    </div>
+      {sheet}
+    </>
   );
 }
