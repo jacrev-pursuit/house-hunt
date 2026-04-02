@@ -34,7 +34,9 @@ export default function HouseCard({ house, parents, onStatusChange }: HouseCardP
   });
   const combined = getCombinedScore(scores);
   const hasDealbreaker = scores.some((s) => s.hasDealbreaker);
-  const heroPhoto = house.photos[0]?.url;
+  const heroMedia = house.photos[0];
+  const heroPhoto = heroMedia?.url;
+  const heroIsVideo = heroMedia?.mediaType === "video";
 
   async function handleStatusChange(newStatus: string) {
     await fetch(`/api/houses/${house.id}/status`, {
@@ -51,16 +53,35 @@ export default function HouseCard({ house, parents, onStatusChange }: HouseCardP
         {/* Hero image */}
         <div className="relative h-44 bg-sand-200">
           {heroPhoto ? (
-            <img
-              src={heroPhoto}
-              alt={house.address}
-              className="w-full h-full object-cover"
-            />
+            heroIsVideo ? (
+              <video
+                src={heroPhoto}
+                muted
+                playsInline
+                preload="metadata"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <img
+                src={heroPhoto}
+                alt={house.address}
+                className="w-full h-full object-cover"
+              />
+            )
           ) : (
             <div className="w-full h-full flex items-center justify-center text-sand-400">
               <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819" />
               </svg>
+            </div>
+          )}
+          {heroIsVideo && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-white ml-0.5" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              </div>
             </div>
           )}
           {hasDealbreaker && (

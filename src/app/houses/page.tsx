@@ -151,9 +151,7 @@ export default function HousesPage() {
               </svg>
             </div>
             <p className="text-sand-400 font-medium">No houses yet</p>
-            {user?.role === "parent" && (
-              <p className="text-sm text-sand-300 mt-1">Add your first property to get started</p>
-            )}
+            <p className="text-sm text-sand-300 mt-1">Add your first property to get started</p>
           </div>
         )}
         {houses.map((house) => (
@@ -162,16 +160,14 @@ export default function HousesPage() {
       </div>
 
       {/* FAB */}
-      {user?.role === "parent" && (
-        <Link
-          href="/houses/new"
-          className="fixed bottom-24 right-4 w-14 h-14 bg-sea-green text-white rounded-full shadow-lg flex items-center justify-center hover:bg-sea-green-light active:scale-95 transition-all z-40"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-        </Link>
-      )}
+      <Link
+        href="/houses/new"
+        className="fixed bottom-24 right-4 w-14 h-14 bg-sea-green text-white rounded-full shadow-lg flex items-center justify-center hover:bg-sea-green-light active:scale-95 transition-all z-40"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+      </Link>
     </div>
   );
 }

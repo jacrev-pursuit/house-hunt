@@ -59,6 +59,7 @@ model HousePhoto {
   id        String   @id @default(uuid())
   houseId   String
   url       String
+  mediaType String   @default("image") // "image" | "video"
   source    String   @default("upload") // "listing" | "upload"
   caption   String   @default("")
   createdAt DateTime @default(now())

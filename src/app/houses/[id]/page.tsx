@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { upload } from "@vercel/blob/client";
 import { useAuth } from "@/components/AuthProvider";
 import ScoreRing from "@/components/ScoreRing";
 import StatusPicker from "@/components/StatusPicker";
@@ -33,7 +34,7 @@ interface HouseDetail {
     tourDate: string | null;
     tourStatus: string;
     notes: string;
-    photos: Array<{ id: string; url: string; source: string; caption: string }>;
+    photos: Array<{ id: string; url: string; mediaType: string; source: string; caption: string }>;
     evaluations: Array<{ id: string; houseId: string; userId: string; priorityId: string; met: string; notes: string }>;
     houseNotes: Array<{
       id: string;
@@ -164,22 +165,33 @@ export default function HouseDetailPage() {
     fetchHouse();
   }
 
-  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = e.target.files;
-    if (!files) return;
+  const [uploading, setUploading] = useState(false);
 
-    for (const file of Array.from(files)) {
-      const reader = new FileReader();
-      reader.onload = async (ev) => {
-        const base64 = ev.target?.result as string;
+  async function handleMediaUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const isVideo = file.type.startsWith("video/");
+        const blob = await upload(file.name, file, {
+          access: "public",
+          handleUploadUrl: "/api/upload",
+        });
         await fetch(`/api/houses/${house.id}/photos`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ url: base64, source: "upload", caption: "" }),
+          body: JSON.stringify({
+            url: blob.url,
+            mediaType: isVideo ? "video" : "image",
+            source: "upload",
+            caption: "",
+          }),
         });
-        fetchHouse();
-      };
-      reader.readAsDataURL(file);
+      }
+      fetchHouse();
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -189,11 +201,21 @@ export default function HouseDetailPage() {
       <div className="relative h-64 bg-sand-200">
         {photos.length > 0 ? (
           <>
-            <img
-              src={photos[photoIdx]?.url}
-              alt={house.address}
-              className="w-full h-full object-cover"
-            />
+            {photos[photoIdx]?.mediaType === "video" ? (
+              <video
+                key={photos[photoIdx].id}
+                src={photos[photoIdx].url}
+                controls
+                playsInline
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <img
+                src={photos[photoIdx]?.url}
+                alt={house.address}
+                className="w-full h-full object-cover"
+              />
+            )}
             {photos.length > 1 && (
               <>
                 <button
@@ -461,21 +483,19 @@ export default function HouseDetailPage() {
           )}
         </div>
 
-        {/* Photo upload */}
-        {isParent && (
-          <div>
-            <label className="block w-full py-3 rounded-xl border-2 border-dashed border-sand-200 text-sand-400 text-center text-sm cursor-pointer hover:border-slate-blue hover:text-slate-blue transition-colors">
-              <input
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handlePhotoUpload}
-                className="hidden"
-              />
-              + Upload Tour Photos
-            </label>
-          </div>
-        )}
+        {/* Media upload */}
+        <div>
+          <label className={`block w-full py-3 rounded-xl border-2 border-dashed border-sand-200 text-sand-400 text-center text-sm cursor-pointer hover:border-slate-blue hover:text-slate-blue transition-colors ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
+            <input
+              type="file"
+              accept="image/*,video/*"
+              multiple
+              onChange={handleMediaUpload}
+              className="hidden"
+            />
+            {uploading ? "Uploading..." : "+ Upload Photos & Videos"}
+          </label>
+        </div>
 
         {/* Tour date */}
         {house.tourDate && (
@@ -519,14 +539,12 @@ export default function HouseDetailPage() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-sm text-foreground">Reactions</h3>
-            {isParent && (
-              <button
-                onClick={() => setShowNoteForm(!showNoteForm)}
-                className="text-xs text-slate-blue font-medium"
-              >
-                + Add Note
-              </button>
-            )}
+            <button
+              onClick={() => setShowNoteForm(!showNoteForm)}
+              className="text-xs text-slate-blue font-medium"
+            >
+              + Add Note
+            </button>
           </div>
 
           {showNoteForm && (

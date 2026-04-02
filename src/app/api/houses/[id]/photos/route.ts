@@ -7,17 +7,18 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession();
-  if (!session || session.role !== "parent") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id: houseId } = await params;
-  const { url, caption, source } = await request.json();
+  const { url, caption, source, mediaType } = await request.json();
 
   const photo = await prisma.housePhoto.create({
     data: {
       houseId,
       url,
+      mediaType: mediaType || "image",
       source: source || "upload",
       caption: caption || "",
     },
@@ -35,6 +36,7 @@ export async function DELETE(
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 
+  await params;
   const { photoId } = await request.json();
   await prisma.housePhoto.delete({ where: { id: photoId } });
   return NextResponse.json({ ok: true });
