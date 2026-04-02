@@ -1,3 +1,5 @@
+Loaded Prisma config from prisma.config.ts.
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL PRIMARY KEY,
@@ -76,5 +78,18 @@ CREATE TABLE "HouseNote" (
     CONSTRAINT "HouseNote_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
+-- CreateTable
+CREATE TABLE "Offer" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "houseId" TEXT NOT NULL,
+    "amount" INTEGER NOT NULL,
+    "type" TEXT NOT NULL,
+    "notes" TEXT NOT NULL DEFAULT '',
+    "date" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "Offer_houseId_fkey" FOREIGN KEY ("houseId") REFERENCES "House" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
 -- CreateIndex
-CREATE UNIQUE INDEX "HouseEvaluation_houseId_userId_priorityId_key" ON "HouseEvaluation"("houseId", "userId", "priorityId");
+CREATE UNIQUE INDEX "HouseEvaluation_houseId_priorityId_key" ON "HouseEvaluation"("houseId", "priorityId");
+

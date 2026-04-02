@@ -4,9 +4,18 @@ import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/components/AuthProvider";
 import ScoreRing from "@/components/ScoreRing";
+import StatusPicker from "@/components/StatusPicker";
 import { calculateScore, getCombinedScore } from "@/lib/scoring";
-import { formatFullPrice, formatDate, tourStatusLabel, tourStatusColor } from "@/lib/utils";
+import { formatFullPrice, formatDate, formatPrice } from "@/lib/utils";
 import Link from "next/link";
+
+interface OfferData {
+  id: string;
+  amount: number;
+  type: string;
+  notes: string;
+  date: string;
+}
 
 interface HouseDetail {
   house: {
@@ -34,12 +43,38 @@ interface HouseDetail {
       createdAt: string;
       user: { id: string; name: string };
     }>;
+    offers: OfferData[];
   };
   parents: Array<{
     id: string;
     name: string;
     priorities: Array<{ id: string; name: string; category: string; rank: number; userId: string; createdAt: string }>;
   }>;
+}
+
+const OFFER_TYPES = [
+  { value: "initial", label: "Our Offer" },
+  { value: "counter_sent", label: "Counter (Sent)" },
+  { value: "counter_received", label: "Counter (Received)" },
+  { value: "accepted", label: "Accepted" },
+  { value: "rejected", label: "Rejected" },
+  { value: "withdrawn", label: "Withdrawn" },
+];
+
+function offerTypeLabel(type: string): string {
+  return OFFER_TYPES.find((t) => t.value === type)?.label || type;
+}
+
+function offerTypeColor(type: string): string {
+  const map: Record<string, string> = {
+    initial: "bg-purple-100 text-purple-700",
+    counter_sent: "bg-blue-100 text-blue-700",
+    counter_received: "bg-amber-100 text-amber-700",
+    accepted: "bg-emerald-100 text-emerald-700",
+    rejected: "bg-red-100 text-red-600",
+    withdrawn: "bg-gray-100 text-gray-500",
+  };
+  return map[type] || "bg-gray-100 text-gray-500";
 }
 
 export default function HouseDetailPage() {
@@ -51,6 +86,10 @@ export default function HouseDetailPage() {
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [noteSentiment, setNoteSentiment] = useState("neutral");
+  const [showOfferForm, setShowOfferForm] = useState(false);
+  const [offerAmount, setOfferAmount] = useState("");
+  const [offerType, setOfferType] = useState("initial");
+  const [offerNotes, setOfferNotes] = useState("");
 
   const fetchHouse = useCallback(async () => {
     const res = await fetch(`/api/houses/${params.id}`);
@@ -70,15 +109,27 @@ export default function HouseDetailPage() {
 
   const { house, parents } = data;
   const photos = house.photos;
+  const isParent = user?.role === "parent";
 
   const parentScores = parents.map((parent) => {
-    const evals = house.evaluations.filter((e) => e.userId === parent.id);
+    const evals = house.evaluations.filter((e) =>
+      parent.priorities.some((p) => p.id === e.priorityId)
+    );
     return {
       parent,
       score: calculateScore(parent.priorities, evals as never[]),
     };
   });
   const combinedScore = getCombinedScore(parentScores.map((ps) => ps.score));
+
+  async function handleStatusChange(newStatus: string) {
+    await fetch(`/api/houses/${house.id}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tourStatus: newStatus }),
+    });
+    fetchHouse();
+  }
 
   async function handleDeleteHouse() {
     if (!confirm("Delete this house? This cannot be undone.")) return;
@@ -95,6 +146,21 @@ export default function HouseDetailPage() {
     });
     setNoteText("");
     setShowNoteForm(false);
+    fetchHouse();
+  }
+
+  async function submitOffer() {
+    const amount = parseInt(offerAmount.replace(/[^\d]/g, ""), 10);
+    if (!amount) return;
+    await fetch(`/api/houses/${house.id}/offers`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount, type: offerType, notes: offerNotes }),
+    });
+    setOfferAmount("");
+    setOfferType("initial");
+    setOfferNotes("");
+    setShowOfferForm(false);
     fetchHouse();
   }
 
@@ -160,7 +226,6 @@ export default function HouseDetailPage() {
           </div>
         )}
 
-        {/* Back button */}
         <button
           onClick={() => router.back()}
           className="absolute top-4 left-4 w-9 h-9 rounded-full bg-black/40 text-white flex items-center justify-center"
@@ -170,11 +235,20 @@ export default function HouseDetailPage() {
           </svg>
         </button>
 
-        {/* Status badge */}
+        {/* Tappable status badge */}
         <div className="absolute top-4 right-4">
-          <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${tourStatusColor(house.tourStatus)}`}>
-            {tourStatusLabel(house.tourStatus)}
-          </span>
+          {isParent ? (
+            <StatusPicker
+              currentStatus={house.tourStatus}
+              onStatusChange={handleStatusChange}
+            />
+          ) : (
+            <StatusPicker
+              currentStatus={house.tourStatus}
+              onStatusChange={() => {}}
+              disabled
+            />
+          )}
         </div>
       </div>
 
@@ -257,7 +331,7 @@ export default function HouseDetailPage() {
           score.breakdown.length > 0 && (
             <details key={parent.id} className="bg-white rounded-2xl border border-sand-200 overflow-hidden">
               <summary className="px-4 py-3 cursor-pointer flex items-center justify-between">
-                <span className="font-semibold text-sm">{parent.name}&apos;s Evaluation</span>
+                <span className="font-semibold text-sm">{parent.name}&apos;s Priorities</span>
                 <span className="text-sm text-sand-400">
                   {score.score}%
                   {score.mustHavesTotal > 0 && ` (${score.mustHavesMet}/${score.mustHavesTotal} must-haves)`}
@@ -286,25 +360,109 @@ export default function HouseDetailPage() {
         ))}
 
         {/* Action buttons for parents */}
-        {user?.role === "parent" && (
+        {isParent && (
           <div className="flex gap-2">
             <Link
               href={`/houses/${house.id}/evaluate`}
               className="flex-1 py-3 rounded-xl bg-sea-green text-white text-center font-semibold text-sm hover:bg-sea-green-light transition-colors"
             >
-              Evaluate
+              Evaluate Together
             </Link>
             <Link
               href={`/houses/${house.id}/edit`}
               className="flex-1 py-3 rounded-xl bg-sand-200 text-foreground text-center font-semibold text-sm hover:bg-sand-300 transition-colors"
             >
-              Edit
+              Edit Details
             </Link>
           </div>
         )}
 
+        {/* Offer / Negotiation Timeline */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-sm text-foreground">Offers & Negotiations</h3>
+            {isParent && (
+              <button
+                onClick={() => setShowOfferForm(!showOfferForm)}
+                className="text-xs text-slate-blue font-medium"
+              >
+                + Log Offer
+              </button>
+            )}
+          </div>
+
+          {showOfferForm && (
+            <div className="space-y-3 mb-4 bg-white rounded-xl border border-sand-200 p-3">
+              <div>
+                <label className="text-xs text-sand-400 mb-1 block">Offer Type</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {OFFER_TYPES.map((t) => (
+                    <button
+                      key={t.value}
+                      onClick={() => setOfferType(t.value)}
+                      className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                        offerType === t.value
+                          ? offerTypeColor(t.value) + " ring-1 ring-current"
+                          : "bg-sand-50 text-sand-400"
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-sand-400 mb-1 block">Amount ($)</label>
+                <input
+                  value={offerAmount}
+                  onChange={(e) => setOfferAmount(e.target.value)}
+                  placeholder="e.g. 2100000"
+                  type="text"
+                  inputMode="numeric"
+                  className="w-full px-3 py-2.5 rounded-xl border border-sand-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-blue/20"
+                />
+              </div>
+              <textarea
+                value={offerNotes}
+                onChange={(e) => setOfferNotes(e.target.value)}
+                placeholder="Notes (optional)"
+                rows={2}
+                className="w-full px-3 py-2.5 rounded-xl border border-sand-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-blue/20 resize-none"
+              />
+              <button
+                onClick={submitOffer}
+                disabled={!offerAmount.replace(/[^\d]/g, "")}
+                className="w-full py-2.5 rounded-xl bg-slate-blue text-white text-sm font-medium disabled:opacity-40"
+              >
+                Save Offer
+              </button>
+            </div>
+          )}
+
+          {house.offers.length > 0 ? (
+            <div className="space-y-2">
+              {house.offers.map((offer) => (
+                <div key={offer.id} className="bg-white rounded-xl border border-sand-200 p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${offerTypeColor(offer.type)}`}>
+                      {offerTypeLabel(offer.type)}
+                    </span>
+                    <span className="text-xs text-sand-300">{formatDate(offer.date)}</span>
+                  </div>
+                  <p className="text-lg font-bold text-foreground">{formatPrice(offer.amount)}</p>
+                  {offer.notes && (
+                    <p className="text-sm text-sand-400 mt-1">{offer.notes}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-sand-300 text-center py-3">No offers yet</p>
+          )}
+        </div>
+
         {/* Photo upload */}
-        {user?.role === "parent" && (
+        {isParent && (
           <div>
             <label className="block w-full py-3 rounded-xl border-2 border-dashed border-sand-200 text-sand-400 text-center text-sm cursor-pointer hover:border-slate-blue hover:text-slate-blue transition-colors">
               <input
@@ -361,7 +519,7 @@ export default function HouseDetailPage() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-sm text-foreground">Reactions</h3>
-            {user?.role === "parent" && (
+            {isParent && (
               <button
                 onClick={() => setShowNoteForm(!showNoteForm)}
                 className="text-xs text-slate-blue font-medium"
@@ -428,7 +586,7 @@ export default function HouseDetailPage() {
         </div>
 
         {/* Delete button */}
-        {user?.role === "parent" && (
+        {isParent && (
           <button
             onClick={handleDeleteHouse}
             className="w-full py-2 text-sm text-red-400 hover:text-red-600 transition-colors"

@@ -13,6 +13,7 @@ export async function GET(
       photos: { orderBy: { createdAt: "asc" } },
       evaluations: true,
       houseNotes: { include: { user: true }, orderBy: { createdAt: "desc" } },
+      offers: { orderBy: { date: "desc" } },
     },
   });
 

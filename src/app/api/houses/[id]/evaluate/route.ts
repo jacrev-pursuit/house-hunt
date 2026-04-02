@@ -17,9 +17,8 @@ export async function POST(
   for (const ev of evaluations) {
     await prisma.houseEvaluation.upsert({
       where: {
-        houseId_userId_priorityId: {
+        houseId_priorityId: {
           houseId,
-          userId: session.id,
           priorityId: ev.priorityId,
         },
       },
@@ -33,6 +32,7 @@ export async function POST(
       update: {
         met: ev.met,
         notes: ev.notes || "",
+        userId: session.id,
       },
     });
   }

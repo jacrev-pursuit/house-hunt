@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useAuth } from "@/components/AuthProvider";
 import { formatDate, tourStatusLabel, tourStatusColor, formatPrice } from "@/lib/utils";
 
 interface HouseSummary {
@@ -15,8 +16,14 @@ interface HouseSummary {
 }
 
 export default function SchedulePage() {
+  const { user } = useAuth();
+  const isParent = user?.role === "parent";
   const [houses, setHouses] = useState<HouseSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [selectedHouseId, setSelectedHouseId] = useState("");
+  const [tourDate, setTourDate] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const fetchData = useCallback(async () => {
     const res = await fetch("/api/houses");
@@ -26,6 +33,26 @@ export default function SchedulePage() {
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  async function scheduleTour() {
+    if (!selectedHouseId || !tourDate) return;
+    setSaving(true);
+    await fetch(`/api/houses/${selectedHouseId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tourStatus: "upcoming", tourDate }),
+    });
+    setSelectedHouseId("");
+    setTourDate("");
+    setShowScheduleForm(false);
+    setSaving(false);
+    fetchData();
+  }
+
+  async function quickScheduleNew() {
+    setShowScheduleForm(true);
+    setSelectedHouseId("");
+  }
 
   if (loading) {
     return (
@@ -47,17 +74,105 @@ export default function SchedulePage() {
       return new Date(b.tourDate).getTime() - new Date(a.tourDate).getTime();
     });
 
+  const inNegotiation = houses.filter((h) =>
+    ["offer_made", "under_contract"].includes(h.tourStatus)
+  );
+
+  const schedulable = houses.filter((h) =>
+    h.tourStatus === "interested" || (h.tourStatus === "visited" && !h.tourDate)
+  );
+
   const interested = houses.filter((h) => h.tourStatus === "interested");
-  const skipped = houses.filter((h) => h.tourStatus === "skipped");
+  const passed = houses.filter((h) => ["passed", "skipped", "rejected", "withdrawn"].includes(h.tourStatus));
 
   return (
     <div className="p-4 space-y-6">
-      <header className="pt-2">
-        <h1 className="text-2xl font-bold text-foreground">Tour Schedule</h1>
-        <p className="text-sm text-sand-400 mt-1">
-          {upcoming.length} upcoming {upcoming.length === 1 ? "tour" : "tours"}
-        </p>
+      <header className="pt-2 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Tour Schedule</h1>
+          <p className="text-sm text-sand-400 mt-1">
+            {upcoming.length} upcoming {upcoming.length === 1 ? "tour" : "tours"}
+          </p>
+        </div>
+        {isParent && (
+          <button
+            onClick={quickScheduleNew}
+            className="px-3 py-1.5 rounded-lg bg-sea-green text-white text-sm font-medium hover:bg-sea-green-light active:scale-95 transition-all"
+          >
+            + Schedule Tour
+          </button>
+        )}
       </header>
+
+      {/* Quick schedule form */}
+      {showScheduleForm && (
+        <div className="bg-white rounded-2xl border border-sand-200 p-4 space-y-3">
+          <h3 className="font-semibold text-sm text-foreground">Schedule a Tour</h3>
+          
+          {schedulable.length > 0 ? (
+            <div>
+              <label className="text-xs text-sand-400 mb-1 block">Pick a house</label>
+              <select
+                value={selectedHouseId}
+                onChange={(e) => setSelectedHouseId(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl border border-sand-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-blue/20"
+              >
+                <option value="">Select a property...</option>
+                {schedulable.map((h) => (
+                  <option key={h.id} value={h.id}>
+                    {h.address} {h.price > 0 && `(${formatPrice(h.price)})`}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="text-sm text-sand-400 bg-sand-50 rounded-xl p-3">
+              No houses to schedule. <Link href="/houses/new" className="text-slate-blue font-medium">Add one first</Link>.
+            </div>
+          )}
+
+          <div>
+            <label className="text-xs text-sand-400 mb-1 block">Tour date & time</label>
+            <input
+              type="datetime-local"
+              value={tourDate}
+              onChange={(e) => setTourDate(e.target.value)}
+              className="w-full px-3 py-2.5 rounded-xl border border-sand-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-blue/20"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={scheduleTour}
+              disabled={!selectedHouseId || !tourDate || saving}
+              className="flex-1 py-2.5 rounded-xl bg-sea-green text-white text-sm font-semibold disabled:opacity-40 active:scale-[0.98] transition-all"
+            >
+              {saving ? "Scheduling..." : "Schedule"}
+            </button>
+            <button
+              onClick={() => setShowScheduleForm(false)}
+              className="px-4 py-2.5 rounded-xl bg-sand-100 text-sand-500 text-sm font-medium"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* In negotiation */}
+      {inNegotiation.length > 0 && (
+        <div>
+          <h2 className="font-bold text-foreground mb-3 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-purple-400" />
+            In Negotiation ({inNegotiation.length})
+          </h2>
+          <div className="space-y-2">
+            {inNegotiation.map((house) => (
+              <ScheduleRow key={house.id} house={house} />
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Upcoming tours */}
       {upcoming.length > 0 && (
@@ -68,9 +183,9 @@ export default function SchedulePage() {
           </h2>
           <div className="space-y-2">
             {upcoming.map((house) => {
-              const tourDate = new Date(house.tourDate!);
-              const isToday = tourDate.toDateString() === now.toDateString();
-              const isTomorrow = tourDate.toDateString() === new Date(now.getTime() + 86400000).toDateString();
+              const tourDateObj = new Date(house.tourDate!);
+              const isToday = tourDateObj.toDateString() === now.toDateString();
+              const isTomorrow = tourDateObj.toDateString() === new Date(now.getTime() + 86400000).toDateString();
 
               return (
                 <Link key={house.id} href={`/houses/${house.id}`} className="block">
@@ -137,18 +252,21 @@ export default function SchedulePage() {
       )}
 
       {/* Passed */}
-      {skipped.length > 0 && (
-        <div>
-          <h2 className="font-bold text-foreground mb-3 flex items-center gap-2">
+      {passed.length > 0 && (
+        <details className="group">
+          <summary className="font-bold text-foreground mb-3 flex items-center gap-2 cursor-pointer list-none">
             <span className="w-2 h-2 rounded-full bg-gray-300" />
-            Passed ({skipped.length})
-          </h2>
+            Passed / Rejected ({passed.length})
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-sand-300 transition-transform group-open:rotate-180" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
+            </svg>
+          </summary>
           <div className="space-y-2">
-            {skipped.map((house) => (
+            {passed.map((house) => (
               <ScheduleRow key={house.id} house={house} />
             ))}
           </div>
-        </div>
+        </details>
       )}
 
       {houses.length === 0 && (

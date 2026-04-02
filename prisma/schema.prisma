@@ -44,7 +44,7 @@ model House {
   listingUrl   String    @default("")
   description  String    @default("")
   tourDate     DateTime?
-  tourStatus   String    @default("interested") // "upcoming" | "visited" | "skipped" | "interested"
+  tourStatus   String    @default("interested")
   notes        String    @default("")
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -52,12 +52,13 @@ model House {
   photos      HousePhoto[]
   evaluations HouseEvaluation[]
   houseNotes  HouseNote[]
+  offers      Offer[]
 }
 
 model HousePhoto {
   id        String   @id @default(uuid())
   houseId   String
-  url       String   // external URL or base64 data URI
+  url       String
   source    String   @default("upload") // "listing" | "upload"
   caption   String   @default("")
   createdAt DateTime @default(now())
@@ -79,7 +80,7 @@ model HouseEvaluation {
   user     User     @relation(fields: [userId], references: [id])
   priority Priority @relation(fields: [priorityId], references: [id], onDelete: Cascade)
 
-  @@unique([houseId, userId, priorityId])
+  @@unique([houseId, priorityId])
 }
 
 model HouseNote {
@@ -92,4 +93,16 @@ model HouseNote {
 
   house House @relation(fields: [houseId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id])
+}
+
+model Offer {
+  id        String   @id @default(uuid())
+  houseId   String
+  amount    Int
+  type      String   // "initial" | "counter_sent" | "counter_received" | "accepted" | "rejected" | "withdrawn"
+  notes     String   @default("")
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  house House @relation(fields: [houseId], references: [id], onDelete: Cascade)
 }

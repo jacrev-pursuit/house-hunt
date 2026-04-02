@@ -2,8 +2,10 @@
 
 import Link from "next/link";
 import ScoreRing from "./ScoreRing";
-import { formatPrice, tourStatusLabel, tourStatusColor, formatDateShort } from "@/lib/utils";
+import StatusPicker from "./StatusPicker";
+import { formatPrice, formatDateShort } from "@/lib/utils";
 import { calculateScore, getCombinedScore } from "@/lib/scoring";
+import { useAuth } from "./AuthProvider";
 import type { House, HousePhoto, HouseEvaluation, Priority, User } from "@/generated/prisma/client";
 
 interface HouseWithRelations extends House {
@@ -18,20 +20,34 @@ interface ParentWithPriorities extends User {
 interface HouseCardProps {
   house: HouseWithRelations;
   parents: ParentWithPriorities[];
+  onStatusChange?: () => void;
 }
 
-export default function HouseCard({ house, parents }: HouseCardProps) {
+export default function HouseCard({ house, parents, onStatusChange }: HouseCardProps) {
+  const { user } = useAuth();
+  const isParent = user?.role === "parent";
+
   const scores = parents.map((parent) => {
-    const evals = house.evaluations.filter((e) => e.userId === parent.id);
+    const parentPriorityIds = new Set(parent.priorities.map((p) => p.id));
+    const evals = house.evaluations.filter((e) => parentPriorityIds.has(e.priorityId));
     return calculateScore(parent.priorities, evals);
   });
   const combined = getCombinedScore(scores);
   const hasDealbreaker = scores.some((s) => s.hasDealbreaker);
   const heroPhoto = house.photos[0]?.url;
 
+  async function handleStatusChange(newStatus: string) {
+    await fetch(`/api/houses/${house.id}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tourStatus: newStatus }),
+    });
+    onStatusChange?.();
+  }
+
   return (
-    <Link href={`/houses/${house.id}`} className="block">
-      <div className="bg-white rounded-2xl shadow-sm border border-sand-200 overflow-hidden active:scale-[0.98] transition-transform">
+    <div className="bg-white rounded-2xl shadow-sm border border-sand-200 overflow-hidden">
+      <Link href={`/houses/${house.id}`} className="block">
         {/* Hero image */}
         <div className="relative h-44 bg-sand-200">
           {heroPhoto ? (
@@ -47,47 +63,48 @@ export default function HouseCard({ house, parents }: HouseCardProps) {
               </svg>
             </div>
           )}
-          {/* Status badge */}
-          <div className="absolute top-3 left-3">
-            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${tourStatusColor(house.tourStatus)}`}>
-              {tourStatusLabel(house.tourStatus)}
-            </span>
-          </div>
           {hasDealbreaker && (
             <div className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full">
               Dealbreaker
             </div>
           )}
         </div>
+      </Link>
 
-        {/* Content */}
-        <div className="p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-foreground truncate">{house.address}</h3>
-              {house.neighborhood && (
-                <p className="text-sm text-sand-400 mt-0.5">{house.neighborhood}</p>
-              )}
-              <p className="text-lg font-bold text-slate-blue mt-1">
-                {house.price > 0 ? formatPrice(house.price) : "Price TBD"}
-              </p>
-            </div>
-            <ScoreRing score={combined} size={52} strokeWidth={4} />
-          </div>
-
-          {/* Stats row */}
-          <div className="flex items-center gap-4 mt-3 text-sm text-sand-400">
-            {house.beds > 0 && <span>{house.beds} bd</span>}
-            {house.baths > 0 && <span>{house.baths} ba</span>}
-            {house.sqft > 0 && <span>{house.sqft.toLocaleString()} sqft</span>}
-            {house.tourDate && (
-              <span className="ml-auto text-xs">
-                Tour: {formatDateShort(house.tourDate)}
-              </span>
+      {/* Content */}
+      <div className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <Link href={`/houses/${house.id}`} className="flex-1 min-w-0">
+            <h3 className="font-semibold text-foreground truncate">{house.address}</h3>
+            {house.neighborhood && (
+              <p className="text-sm text-sand-400 mt-0.5">{house.neighborhood}</p>
             )}
+            <p className="text-lg font-bold text-slate-blue mt-1">
+              {house.price > 0 ? formatPrice(house.price) : "Price TBD"}
+            </p>
+          </Link>
+          <ScoreRing score={combined} size={52} strokeWidth={4} />
+        </div>
+
+        {/* Stats + Status row */}
+        <div className="flex items-center gap-4 mt-3 text-sm text-sand-400">
+          {house.beds > 0 && <span>{house.beds} bd</span>}
+          {house.baths > 0 && <span>{house.baths} ba</span>}
+          {house.sqft > 0 && <span>{house.sqft.toLocaleString()} sqft</span>}
+          {house.tourDate && (
+            <span className="text-xs">
+              Tour: {formatDateShort(house.tourDate)}
+            </span>
+          )}
+          <div className="ml-auto" onClick={(e) => e.stopPropagation()}>
+            <StatusPicker
+              currentStatus={house.tourStatus}
+              onStatusChange={handleStatusChange}
+              disabled={!isParent}
+            />
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }

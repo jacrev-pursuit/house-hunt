@@ -30,7 +30,6 @@ type HouseData = {
     id: string;
     name: string;
     role: string;
-    passcode: string;
     createdAt: string;
     priorities: Array<{ id: string; userId: string; name: string; category: string; rank: number; createdAt: string }>;
   }>;
@@ -62,14 +61,15 @@ export default function HousesPage() {
 
   let houses = [...data.houses];
 
-  // Filter
   if (filter !== "all") {
-    houses = houses.filter((h) => h.tourStatus === filter);
+    if (filter === "active") {
+      houses = houses.filter((h) => !["passed", "rejected", "withdrawn", "skipped"].includes(h.tourStatus));
+    } else {
+      houses = houses.filter((h) => h.tourStatus === filter);
+    }
   }
 
-  // Sort
   if (sort === "score") {
-    // We'll sort by some basic heuristic (evaluated count)
     houses.sort((a, b) => b.evaluations.length - a.evaluations.length);
   } else if (sort === "price_asc") {
     houses.sort((a, b) => a.price - b.price);
@@ -103,13 +103,16 @@ export default function HousesPage() {
       </header>
 
       {/* Filters */}
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
         {[
           { value: "all", label: "All" },
+          { value: "active", label: "Active" },
           { value: "interested", label: "Interested" },
           { value: "upcoming", label: "Scheduled" },
           { value: "visited", label: "Visited" },
-          { value: "skipped", label: "Passed" },
+          { value: "offer_made", label: "Offers" },
+          { value: "under_contract", label: "Contract" },
+          { value: "passed", label: "Passed" },
         ].map((f) => (
           <button
             key={f.value}
@@ -154,7 +157,7 @@ export default function HousesPage() {
           </div>
         )}
         {houses.map((house) => (
-          <HouseCard key={house.id} house={house as never} parents={data.parents as never[]} />
+          <HouseCard key={house.id} house={house as never} parents={data.parents as never[]} onStatusChange={fetchHouses} />
         ))}
       </div>
 

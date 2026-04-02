@@ -9,6 +9,7 @@ interface Priority {
   name: string;
   category: string;
   rank: number;
+  parentName: string;
 }
 
 interface Evaluation {
@@ -33,24 +34,25 @@ export default function EvaluatePage() {
     const data = await res.json();
     setHouseName(data.house.address);
 
-    const myParent = data.parents.find((p: { id: string }) => p.id === user?.id);
-    if (myParent) {
-      setPriorities(myParent.priorities);
+    const allPriorities: Priority[] = [];
+    for (const parent of data.parents) {
+      for (const p of parent.priorities) {
+        allPriorities.push({ ...p, parentName: parent.name });
+      }
     }
+    setPriorities(allPriorities);
 
     const existingEvals = new Map<string, Evaluation>();
     for (const ev of data.house.evaluations) {
-      if (ev.userId === user?.id) {
-        existingEvals.set(ev.priorityId, {
-          priorityId: ev.priorityId,
-          met: ev.met,
-          notes: ev.notes,
-        });
-      }
+      existingEvals.set(ev.priorityId, {
+        priorityId: ev.priorityId,
+        met: ev.met,
+        notes: ev.notes,
+      });
     }
     setEvaluations(existingEvals);
     setLoading(false);
-  }, [params.id, user?.id, router]);
+  }, [params.id, router]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -106,6 +108,15 @@ export default function EvaluatePage() {
     );
   }
 
+  if (!user || user.role !== "parent") {
+    return (
+      <div className="p-6 text-center text-sand-400">
+        Only parents can evaluate houses.
+      </div>
+    );
+  }
+
+  const parentNames = [...new Set(priorities.map((p) => p.parentName))];
   const mustHaves = priorities.filter((p) => p.category === "must_have");
   const niceToHaves = priorities.filter((p) => p.category === "nice_to_have");
 
@@ -118,15 +129,17 @@ export default function EvaluatePage() {
           </svg>
           Back
         </button>
-        <h1 className="text-2xl font-bold text-foreground">Evaluate</h1>
+        <h1 className="text-2xl font-bold text-foreground">Evaluate Together</h1>
         <p className="text-sm text-sand-400 mt-1 truncate">{houseName}</p>
+        <p className="text-xs text-sand-300 mt-0.5">
+          Combined priorities from {parentNames.join(" & ")}
+        </p>
       </header>
 
       <p className="text-xs text-sand-400 bg-sand-100 rounded-xl px-3 py-2">
         Tap each priority to cycle: <span className="text-sand-500">Not evaluated</span> → <span className="text-emerald-600">Met</span> → <span className="text-amber-500">Partial</span> → <span className="text-red-500">Not met</span>
       </p>
 
-      {/* Must-haves */}
       {mustHaves.length > 0 && (
         <div>
           <h2 className="font-bold text-foreground mb-2 flex items-center gap-2">
@@ -147,7 +160,6 @@ export default function EvaluatePage() {
         </div>
       )}
 
-      {/* Nice-to-haves */}
       {niceToHaves.length > 0 && (
         <div>
           <h2 className="font-bold text-foreground mb-2 flex items-center gap-2">
@@ -211,7 +223,10 @@ function EvalRow({
         </button>
         <div className="flex-1 min-w-0">
           <div className="font-medium text-sm truncate">{priority.name}</div>
-          <div className={`text-xs ${statusConfig.text}`}>{statusConfig.label}</div>
+          <div className="flex items-center gap-1.5">
+            <span className={`text-xs ${statusConfig.text}`}>{statusConfig.label}</span>
+            <span className="text-xs text-sand-300">· {priority.parentName}</span>
+          </div>
         </div>
         <button
           onClick={() => setShowNote(!showNote)}

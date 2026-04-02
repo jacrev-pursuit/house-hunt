@@ -240,7 +240,11 @@ export default function HouseForm({ initial, onSave, saving }: HouseFormProps) {
             <option value="interested">Interested</option>
             <option value="upcoming">Tour Scheduled</option>
             <option value="visited">Visited</option>
-            <option value="skipped">Passed</option>
+            <option value="offer_made">Offer Made</option>
+            <option value="under_contract">Under Contract</option>
+            <option value="passed">Passed</option>
+            <option value="rejected">Rejected</option>
+            <option value="withdrawn">Withdrawn</option>
           </select>
         </div>
       </div>
