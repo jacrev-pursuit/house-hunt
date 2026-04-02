@@ -91,6 +91,7 @@ export default function HouseDetailPage() {
   const [offerAmount, setOfferAmount] = useState("");
   const [offerType, setOfferType] = useState("initial");
   const [offerNotes, setOfferNotes] = useState("");
+  const [uploading, setUploading] = useState(false);
 
   const fetchHouse = useCallback(async () => {
     const res = await fetch(`/api/houses/${params.id}`);
@@ -164,8 +165,6 @@ export default function HouseDetailPage() {
     setShowOfferForm(false);
     fetchHouse();
   }
-
-  const [uploading, setUploading] = useState(false);
 
   async function handleMediaUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
