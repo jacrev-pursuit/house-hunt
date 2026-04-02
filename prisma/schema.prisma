@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  role      String   // "parent" | "viewer"
+  passcode  String
+  createdAt DateTime @default(now())
+
+  priorities  Priority[]
+  evaluations HouseEvaluation[]
+  notes       HouseNote[]
+}
+
+model Priority {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  category  String   // "must_have" | "nice_to_have"
+  rank      Int
+  createdAt DateTime @default(now())
+
+  user        User              @relation(fields: [userId], references: [id])
+  evaluations HouseEvaluation[]
+}
+
+model House {
+  id           String    @id @default(uuid())
+  address      String
+  neighborhood String    @default("")
+  price        Int       @default(0)
+  beds         Int       @default(0)
+  baths        Float     @default(0)
+  sqft         Int       @default(0)
+  lotAcres     Float     @default(0)
+  yearBuilt    Int       @default(0)
+  listingUrl   String    @default("")
+  description  String    @default("")
+  tourDate     DateTime?
+  tourStatus   String    @default("interested") // "upcoming" | "visited" | "skipped" | "interested"
+  notes        String    @default("")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  photos      HousePhoto[]
+  evaluations HouseEvaluation[]
+  houseNotes  HouseNote[]
+}
+
+model HousePhoto {
+  id        String   @id @default(uuid())
+  houseId   String
+  url       String   // external URL or base64 data URI
+  source    String   @default("upload") // "listing" | "upload"
+  caption   String   @default("")
+  createdAt DateTime @default(now())
+
+  house House @relation(fields: [houseId], references: [id], onDelete: Cascade)
+}
+
+model HouseEvaluation {
+  id         String   @id @default(uuid())
+  houseId    String
+  userId     String
+  priorityId String
+  met        String   @default("not_evaluated") // "yes" | "no" | "partial" | "not_evaluated"
+  notes      String   @default("")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  house    House    @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+  priority Priority @relation(fields: [priorityId], references: [id], onDelete: Cascade)
+
+  @@unique([houseId, userId, priorityId])
+}
+
+model HouseNote {
+  id        String   @id @default(uuid())
+  houseId   String
+  userId    String
+  sentiment String   @default("neutral") // "like" | "dislike" | "neutral"
+  text      String
+  createdAt DateTime @default(now())
+
+  house House @relation(fields: [houseId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id])
+}

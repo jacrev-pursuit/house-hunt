@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+:root {
+  --sand-50: #faf8f5;
+  --sand-100: #f3efe8;
+  --sand-200: #e8e0d4;
+  --sand-300: #d4c8b6;
+  --sand-400: #b8a78e;
+  --slate-blue: #4a6475;
+  --slate-blue-dark: #364956;
+  --sea-green: #5a9e8f;
+  --sea-green-light: #7abfb0;
+  --coral: #e07a5f;
+  --background: var(--sand-50);
+  --foreground: #2c3e50;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-sand-50: var(--sand-50);
+  --color-sand-100: var(--sand-100);
+  --color-sand-200: var(--sand-200);
+  --color-sand-300: var(--sand-300);
+  --color-sand-400: var(--sand-400);
+  --color-slate-blue: var(--slate-blue);
+  --color-slate-blue-dark: var(--slate-blue-dark);
+  --color-sea-green: var(--sea-green);
+  --color-sea-green-light: var(--sea-green-light);
+  --color-coral: var(--coral);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+input, select, textarea {
+  font-size: 16px; /* prevent iOS zoom on focus */
+}
