@@ -16,15 +16,15 @@ async function main() {
   await prisma.user.deleteMany();
 
   await prisma.user.create({
-    data: { name: "Mom", role: "parent", passcode: "northfork1" },
+    data: { name: "Mom", role: "parent", passcode: "juliette" },
   });
 
   await prisma.user.create({
-    data: { name: "Dad", role: "parent", passcode: "northfork2" },
+    data: { name: "Dad", role: "parent", passcode: "john" },
   });
 
   await prisma.user.create({
-    data: { name: "Family", role: "viewer", passcode: "viewer" },
+    data: { name: "Family", role: "viewer", passcode: "family" },
   });
 
   console.log("Seeded: Mom, Dad, Family accounts (priorities set on first login)");
